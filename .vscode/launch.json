@@ -12,7 +12,7 @@
 			"projectName": "Tucil2_13523045_13523052",
 			"cwd": "${workspaceFolder}",
 			"args": "-i .private/jpg1.jpg -m Variance -t 0 -b 1",
-			"javaExec": "E:\\Application\\Java\\adoptium-21-amd64-windows\\bin\\java.exe",
+			// "javaExec": "E:\\Application\\Java\\adoptium-21-amd64-windows\\bin\\java.exe",
 			"classPaths": [
 				"${workspaceFolder}/build/libs/Tucil2_13523045_13523052.jar"
 			]

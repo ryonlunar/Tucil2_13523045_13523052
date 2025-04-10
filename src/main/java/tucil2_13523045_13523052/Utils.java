@@ -49,7 +49,7 @@ public class Utils {
 		return sum;
 	}
 	public static int getImageIntegralAverageColor(long[] imageIntegral, int iw, int ih, int x, int y, int w, int h) {
-		if(x < 0 || x + w > iw || y < 0 || y + h > ih)
+		if(x < 0 || x + w > iw || y < 0 || y + h > ih || w <= 0 || h <= 0)
 			throw new IndexOutOfBoundsException();
 		long total = imageIntegral[(y + h - 1) * iw + (x + w - 1)];
 		if(x > 0) total -= imageIntegral[(y + h - 1) * iw + x - 1];

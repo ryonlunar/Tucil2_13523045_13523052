@@ -6,3 +6,5 @@ replay_pid*
 .gradle
 
 .private/
+build/
+bin/

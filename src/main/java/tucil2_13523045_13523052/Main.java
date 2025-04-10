@@ -4,11 +4,9 @@ import java.io.File;
 
 import javax.imageio.ImageIO;
 
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
-import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
@@ -54,15 +52,45 @@ public class Main {
 		}
 	}
 	public static void entryCLI(String inputFile, QuadTreeMethod quadTreeMethod, double quadTreeThreshold, int minBlockSize) throws Exception {
-		var imageBuffer = Utils.readImageBuffer(new File(inputFile));
-		var compressor = new ImageQuadTreeCompressor(imageBuffer, new ImageQuadTreeCompressor.Controller.Variance(quadTreeThreshold), minBlockSize);
+		File file = new File(inputFile);
+		if (!file.exists()) {
+			throw new IllegalArgumentException("Input file not found: " + inputFile);
+		}
+
+		String format = inputFile.substring(inputFile.lastIndexOf('.') + 1).toLowerCase();
+		if (!format.matches("png|jpg|jpeg|bmp")) {
+			throw new IllegalArgumentException("Unsupported image format: " + format);
+		}
+
+		var imageBuffer = Utils.readImageBuffer(file);
+		ImageQuadTreeCompressor.Controller controller = null;
+		switch(quadTreeMethod) {
+			case Variance:
+				controller = new ImageQuadTreeCompressor.Controller.Variance(quadTreeThreshold);
+				break;
+			case MeanAbsoluteDeviation:
+				controller = new ImageQuadTreeCompressor.Controller.MeanAbsoluteDeviation(quadTreeThreshold);
+				break;
+			case MaxPixelDifference:
+				controller = new ImageQuadTreeCompressor.Controller.MaxPixelDifference(quadTreeThreshold);
+				break;
+			case Entropy:
+				controller = new ImageQuadTreeCompressor.Controller.Entropy(quadTreeThreshold);
+				break;
+				
+		}
+
+		var compressor = new ImageQuadTreeCompressor(imageBuffer, controller, minBlockSize);
+
+		// Somehow JPG gabisa jir watdehel
+		// System.out.println("File name: " + "out/step-" + step + "." + format); debugging purpose
 		int step = 0;
 		while(compressor.step()) {
 			System.out.println("Step " + step);
-			ImageIO.write(compressor.getCompressedImage(), "png", new File("out/step-" + step + ".png"));
+			ImageIO.write(compressor.getCompressedImage(), format, new File("out/step-" + step + "." + format));
 			step++;
 		}
-		ImageIO.write(compressor.getCompressedImage(), "png", new File("out/step-" + step + ".png"));
+		ImageIO.write(compressor.getCompressedImage(), format, new File("out/step-" + step + "." + format));
 		System.out.println("Done");
 		System.exit(0);
 	}
