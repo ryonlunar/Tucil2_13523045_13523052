@@ -342,4 +342,39 @@ public class ImageQuadTreeCompressor {
 		}
 		return compressedImage;
 	}
+
+	public int getNodeCount() {
+        return quadTree.getNodeCount();
+    }
+
+    public int getTreeDepth() {
+        return quadTree.getMaxDepth();
+    }
+
+	public int getTotalLeafArea() {
+		int total = 0;
+		var queue = IntLists.mutable.empty();
+		queue.add(0);
+	
+		while (queue.notEmpty()) {
+			int index = queue.removeAtIndex(0);
+			int tl = quadTree.getIndexTL(index);
+			int tr = quadTree.getIndexTR(index);
+			int bl = quadTree.getIndexBL(index);
+			int br = quadTree.getIndexBR(index);
+	
+			if (tl == -1 && tr == -1 && bl == -1 && br == -1) {
+				int w = quadTree.getBoundaryW(index);
+				int h = quadTree.getBoundaryH(index);
+				total += w * h;
+			} else {
+				if (tl != -1) queue.add(tl);
+				if (tr != -1) queue.add(tr);
+				if (bl != -1) queue.add(bl);
+				if (br != -1) queue.add(br);
+			}
+		}
+		return total;
+	}
+	
 }

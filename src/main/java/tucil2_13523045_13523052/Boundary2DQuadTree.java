@@ -56,6 +56,36 @@ public class Boundary2DQuadTree<T> {
 	public int getBoundaryH(int index) {
 		return boundaries.get(index * 4 + 3);
 	}
+	public int getNodeCount() {
+		return indices.size()/4;
+	}
+
+	public int getMaxDepth(){
+		return getMaxDepthRecursive(0);
+	}
+
+	private int getMaxDepthRecursive(int index) {
+		if (index == -1) return 0;
+	
+		int tl = getIndexTL(index);
+		int tr = getIndexTR(index);
+		int bl = getIndexBL(index);
+		int br = getIndexBR(index);
+	
+		// Jika tidak punya anak (leaf)
+		if (tl == -1 && tr == -1 && bl == -1 && br == -1) {
+			return 1;
+		}
+	
+		// Cari kedalaman maksimum dari anak-anak
+		int maxChildDepth = Math.max(
+			Math.max(getMaxDepthRecursive(tl), getMaxDepthRecursive(tr)),
+			Math.max(getMaxDepthRecursive(bl), getMaxDepthRecursive(br))
+		);
+	
+		return 1 + maxChildDepth;
+	}
+
 	protected void setBoundaryX(int index, int value) {
 		boundaries.set(index * 4 + 0, value);
 	}

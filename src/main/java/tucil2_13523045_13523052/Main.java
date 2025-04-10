@@ -52,7 +52,9 @@ public class Main {
 		}
 	}
 	public static void entryCLI(String inputFile, QuadTreeMethod quadTreeMethod, double quadTreeThreshold, int minBlockSize) throws Exception {
+		long startTime = System.nanoTime();
 		File file = new File(inputFile);
+		long originalFileSize = file.length();
 		if (!file.exists()) {
 			throw new IllegalArgumentException("Input file not found: " + inputFile);
 		}
@@ -90,8 +92,26 @@ public class Main {
 			ImageIO.write(compressor.getCompressedImage(), format, new File("out/step-" + step + "." + format));
 			step++;
 		}
+		System.out.println("Step " + step);
 		ImageIO.write(compressor.getCompressedImage(), format, new File("out/step-" + step + "." + format));
-		System.out.println("Done");
+		String finalImagePath = "out/step-" + step + "." + format;
+
+		long endTime = System.nanoTime();
+		double elapsedSeconds = (endTime - startTime) / 1_000_000_000.0;
+
+		int nodeCount = compressor.getNodeCount();
+		int depth = compressor.getTreeDepth();
+		long compressedSize = new File(finalImagePath).length();
+		double compressionRatio = ((1.0 - (double) compressedSize / originalFileSize) * 100);
+
+		System.out.println("========== OUTPUT ==========");
+		System.out.printf("Waktu eksekusi: %.3f detik\n", elapsedSeconds);
+		System.out.println("Ukuran gambar sebelum: " + originalFileSize + " byte");
+		System.out.println("Ukuran hasil kompresi: " + compressedSize + " byte");
+		System.out.printf("Persentase kompresi: %.2f%%\n", compressionRatio);
+		System.out.println("Kedalaman pohon: " + depth);
+		System.out.println("Jumlah simpul pohon: " + nodeCount);
+		System.out.println("Gambar hasil kompresi terakhir: " + finalImagePath);
 		System.exit(0);
 	}
 }
