@@ -85,6 +85,48 @@ public class Boundary2DQuadTree<T> {
 			throw new IndexOutOfBoundsException(index);
 		metadata.set(index, value);
 	}
+
+	public int getNodeCount() {
+		return indices.size() / 4 - skipped.size();
+	}
+	public int getMaxDepth() {
+		return getMaxDepthRecursive(0);
+	}
+	private int getMaxDepthRecursive(int index) {
+		int indexTL = getIndexTL(index);
+		int indexTR = getIndexTR(index);
+		int indexBL = getIndexBL(index);
+		int indexBR = getIndexBR(index);
+		int maxChildDepth = Math.max(
+			Math.max(indexTL != -1 ? getMaxDepthRecursive(indexTL) : 0, indexTR != -1 ? getMaxDepthRecursive(indexTR) : 0),
+			Math.max(indexBL != -1 ? getMaxDepthRecursive(indexBL) : 0, indexBR != -1 ? getMaxDepthRecursive(indexBR) : 0)
+		);
+		return maxChildDepth + 1;
+	}
+	public int getTotalLeafArea() {
+		int total = 0;
+		var queue = IntLists.mutable.empty();
+		queue.add(0);
+		while(queue.size() > 0) {
+			int index = queue.removeAtIndex(0);
+			int indexTL = getIndexTL(index);
+			int indexTR = getIndexTR(index);
+			int indexBL = getIndexBL(index);
+			int indexBR = getIndexBR(index);
+			if(indexTL == -1 && indexTR == -1 && indexBL == -1 && indexBR == -1) {
+				int w = getBoundaryW(index);
+				int h = getBoundaryH(index);
+				total += w * h;
+			} else {
+				if(indexTL != -1) queue.add(indexTL);
+				if(indexTR != -1) queue.add(indexTR);
+				if(indexBL != -1) queue.add(indexBL);
+				if(indexBR != -1) queue.add(indexBR);
+			}
+		}
+		return total;
+	}
+
 	private static final int[] INDICES_INITIAL = { -1, -1, -1, -1 };
 	private static final int[] BOUNDARIES_INITIAL = { -1, -1, -1, -1 };
 	protected int newTree(int x, int y, int w, int h) {

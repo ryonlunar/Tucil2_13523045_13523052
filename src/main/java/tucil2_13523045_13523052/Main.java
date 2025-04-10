@@ -85,7 +85,7 @@ public class Main {
 		var compressor = new ImageQuadTreeCompressor(image, controller, minBlockSize);
 		var workingImage = new BufferedImage(image.getWidth(), image.getHeight(), format == "png" ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
 		var workingGraphics = workingImage.createGraphics();
-		System.out.printf("Constructing done in %.2fms\n", (float) (System.nanoTime() - constructStart) / 1000000);
+		System.out.printf("Precompute done in %.2fms\n", (float) (System.nanoTime() - constructStart) / 1000000);
 		CompletableFuture<?> lastSave = CompletableFuture.completedFuture(null);
 
 		int step = 1;
@@ -118,7 +118,21 @@ public class Main {
 			step++;
 		}
 		lastSave.join();
-		System.out.printf("Done in %.2fms (+saving time %.2fms)\n", (float) loopTotalDuration / 1000000, (float) saveTotalDuration[0] / 1000000);
+
+		String finalImagePath = "out/step-" + (step - 1) + "." + format;
+		long originalFileSize = file.length();
+		int nodeCount = compressor.getNodeCount();
+		int depth = compressor.getTreeDepth();
+		long compressedSize = new File(finalImagePath).length();
+		double compressionRatio = ((1.0 - (double) compressedSize / originalFileSize) * 100);
+		System.out.printf("========== OUTPUT ==========");
+		System.out.printf("Waktu eksekusi: %.2fms (+waktu I/O %.2fms)\n", (float) loopTotalDuration / 1000000, (float) saveTotalDuration[0] / 1000000);
+		System.out.printf("Ukuran gambar sebelum: %d bytes\n", originalFileSize);
+		System.out.printf("Ukuran hasil kompresi: %d bytes\n", compressedSize);
+		System.out.printf("Persentase kompresi: %.2f%%\n", compressionRatio);
+		System.out.printf("Kedalaman pohon: %d\n", depth);
+		System.out.printf("Jumlah simpul pohon: %d\n", nodeCount);
+		System.out.printf("Gambar hasil kompresi terakhir: %d\n", finalImagePath);
 		System.exit(0);
 	}
 }

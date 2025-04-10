@@ -287,4 +287,14 @@ public class ImageQuadTreeCompressor {
 		}
 		return compressionImage;
 	}
+
+	public int getNodeCount() {
+        return quadTree.getNodeCount();
+    }
+    public int getTreeDepth() {
+        return quadTree.getMaxDepth();
+    }
+	public int getTotalLeafArea() {
+		return quadTree.getTotalLeafArea();
+	}
 }
