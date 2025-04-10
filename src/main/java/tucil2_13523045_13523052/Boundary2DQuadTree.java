@@ -5,14 +5,21 @@ import java.util.List;
 
 import org.eclipse.collections.api.factory.primitive.IntLists;
 import org.eclipse.collections.api.list.primitive.MutableIntList;
+import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
 
 public class Boundary2DQuadTree<T> {
+	protected final int alignX;
+	protected final int alignY;
 	protected final MutableIntList indices;
 	protected final MutableIntList boundaries;
 	protected final List<T> metadata;
 	protected final MutableIntList skipped;
 
-	public Boundary2DQuadTree(int x, int y, int width, int height) {
+	public Boundary2DQuadTree(int x, int y, int width, int height, int alignX, int alignY) {
+		if(x % alignX != 0 || y % alignY != 0)
+			throw new Error("Origin is not aligned");
+		this.alignX = alignX;
+		this.alignY = alignY;
 		this.indices = IntLists.mutable.empty();
 		this.boundaries = IntLists.mutable.empty();
 		this.metadata = new ArrayList<>();
@@ -78,20 +85,16 @@ public class Boundary2DQuadTree<T> {
 			throw new IndexOutOfBoundsException(index);
 		metadata.set(index, value);
 	}
+	private static final int[] INDICES_INITIAL = { -1, -1, -1, -1 };
+	private static final int[] BOUNDARIES_INITIAL = { -1, -1, -1, -1 };
 	protected int newTree(int x, int y, int w, int h) {
 		int index = indices.size() / 4;
 		if(skipped.size() > 0) {
 			index = skipped.getLast();
 			skipped.removeAtIndex(skipped.size() - 1);
 		} else {
-			indices.add(-1);
-			indices.add(-1);
-			indices.add(-1);
-			indices.add(-1);
-			boundaries.add(-1);
-			boundaries.add(-1);
-			boundaries.add(-1);
-			boundaries.add(-1);
+			indices.addAllAtIndex(indices.size(), INDICES_INITIAL);
+			boundaries.addAllAtIndex(boundaries.size(), BOUNDARIES_INITIAL);
 			metadata.add(null);
 		}
 		setIndexTL(index, -1);
@@ -122,18 +125,22 @@ public class Boundary2DQuadTree<T> {
 		int y = getBoundaryY(index);
 		int w = getBoundaryW(index);
 		int h = getBoundaryH(index);
-		int lowerWidth = w / 2;
-		int upperWidth = w - lowerWidth;
-		int lowerHeight = h / 2;
-		int upperHeight = h - lowerHeight;
+		int midX = ((x + w / 2 + alignX - 1) / alignX) * alignX;
+		int midY = ((y + h / 2 + alignY - 1) / alignY) * alignY;
+		if(midX <= x || midX >= x + w) midX = x + w / 2;
+		if(midY <= y || midY >= y + h) midY = y + h / 2;
+		int w1 = midX - x;
+		int w2 = x + w - midX;
+		int h1 = midY - y;
+		int h2 = y + h - midY;
 		if(getIndexTL(index) == -1)
-			setIndexTL(index, newTree(x, y, lowerWidth, lowerHeight));
+			setIndexTL(index, newTree(x, y, w1, h1));
 		if(getIndexTR(index) == -1)
-			setIndexTR(index, newTree(x + lowerWidth, y, upperWidth, lowerHeight));
+			setIndexTR(index, newTree(midX, y, w2, h1));
 		if(getIndexBL(index) == -1)
-			setIndexBL(index, newTree(x, y + lowerHeight, lowerWidth, upperHeight));
+			setIndexBL(index, newTree(x, midY, w1, h2));
 		if(getIndexBR(index) == -1)
-			setIndexBR(index, newTree(x + lowerWidth, y + lowerHeight, upperWidth, upperHeight));
+			setIndexBR(index, newTree(midX, midY, w2, h2));
 	}
 	public void merge(int index) {
 		int indexTL = getIndexTL(index);

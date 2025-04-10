@@ -1,10 +1,9 @@
 package tucil2_13523045_13523052;
 
 import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.eclipse.collections.api.factory.primitive.IntLists;
 import org.eclipse.collections.api.list.primitive.MutableIntList;
@@ -15,33 +14,23 @@ public class ImageQuadTreeCompressor {
 		public Controller(double threshold) {
 			this.threshold = threshold;
 		}
-		public abstract boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h);
+		public abstract boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h);
 
 		public static class Variance extends Controller {
 			public Variance(double threshold) {
 				super(threshold);
 			}
 			@Override
-			public boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h) {
-				if(w < 1 || h < 1) return false; // Ganti sama minBlockSize ??
-				int sumR = 0, sumG = 0, sumB = 0;
+			public boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h) {
 				int pixelCount = w * h;
-
-				// Calculate mean
-				for(int j = y; j < y + h; j++) {
-					for(int i = x; i < x + w; i++) {
-						sumR += image.getRed(i, j);
-						sumG += image.getGreen(i, j);
-						sumB += image.getBlue(i, j);
-					}
-				}
-
-				double meanR = sumR / (double) pixelCount;
-				double meanG = sumG / (double) pixelCount;
-				double meanB = sumB / (double) pixelCount;
+				double meanR = imageStatistics.getAverageR(x, y, w, h);
+				double meanG = imageStatistics.getAverageG(x, y, w, h);
+				double meanB = imageStatistics.getAverageB(x, y, w, h);
 
 				// Calculate variance
-				double varianceR = 0, varianceG = 0, varianceB = 0;
+				double varianceR = 0;
+				double varianceG = 0;
+				double varianceB = 0;
 				for(int j = y; j < y + h; j++) {
 					for(int i = x; i < x + w; i++) {
 						varianceR += Math.pow(image.getRed(i, j) - meanR, 2);
@@ -52,7 +41,6 @@ public class ImageQuadTreeCompressor {
 				varianceR /= pixelCount;
 				varianceG /= pixelCount;
 				varianceB /= pixelCount;
-
 				double varRGB = (varianceR + varianceG + varianceB) / 3.0;
 
 				// Check if variance is above threshold
@@ -64,26 +52,16 @@ public class ImageQuadTreeCompressor {
 				super(threshold);
 			}
 			@Override
-			public boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h) {
-				if(w < 1 || h < 1) return false;
-				int sumR = 0, sumG = 0, sumB = 0;
+			public boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h) {
 				int pixelCount = w * h;
-
-				// Calculate Mean
-				for(int j = y; j < y + h; j++) {
-					for(int i = x; i < x + w; i++) {
-						sumR += image.getRed(i, j);
-						sumG += image.getGreen(i, j);
-						sumB += image.getBlue(i, j);
-					}
-				}
-
-				double meanR = sumR / (double) pixelCount;
-				double meanG = sumG / (double) pixelCount;	
-				double meanB = sumB / (double) pixelCount;
+				double meanR = imageStatistics.getAverageR(x, y, w, h);
+				double meanG = imageStatistics.getAverageG(x, y, w, h);
+				double meanB = imageStatistics.getAverageB(x, y, w, h);
 
 				// Calculate Mean Absolute Deviation
-				double madR = 0, madG = 0, madB = 0;
+				double madR = 0;
+				double madG = 0;
+				double madB = 0;
 				for(int j = y; j < y + h; j++) {
 					for(int i = x; i < x + w; i++) {
 						madR += Math.abs(image.getRed(i, j) - meanR);
@@ -105,10 +83,13 @@ public class ImageQuadTreeCompressor {
 				super(threshold);
 			}
 			@Override
-			public boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h) {
-				if(w < 1 || h < 1) return false;
-				int maxR = 0, maxG = 0, maxB = 0;
-				int minR = 255, minG = 255, minB = 255;
+			public boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h) {
+				int maxR = 0;
+				int maxG = 0;
+				int maxB = 0;
+				int minR = 255;
+				int minG = 255;
+				int minB = 255;
 
 				// Calculate max and min values
 				for(int j = y; j < y + h; j++) {
@@ -124,7 +105,6 @@ public class ImageQuadTreeCompressor {
 						minB = Math.min(minB, b);
 					}
 				}
-
 				double diffR = maxR - minR;
 				double diffG = maxG - minG;
 				double diffB = maxB - minB;
@@ -139,10 +119,8 @@ public class ImageQuadTreeCompressor {
 				super(threshold);
 			}
 			@Override
-			public boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h) {
-				if(w < 1 || h < 1) return false;
+			public boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h) {
 				int pixelCount = w * h;
-				
 				int[] histR = new int[256];
 				int[] histG = new int[256];
 				int[] histB = new int[256];
@@ -158,9 +136,11 @@ public class ImageQuadTreeCompressor {
 						histB[b]++;
 					}
 				}
-				
+
 				// Compute Entropy per channel
-				double entropyR = 0, entropyG = 0, entropyB = 0;
+				double entropyR = 0;
+				double entropyG = 0;
+				double entropyB = 0;
 				for(int i = 0; i < 256; i++) {
 					if(histR[i] > 0) {
 						double p = (double) histR[i] / pixelCount;
@@ -191,29 +171,19 @@ public class ImageQuadTreeCompressor {
 			private double computeSSIM(double muX, double sigmaX2, double muY, double sigmaXY) {
 				double numerator = (2 * muX * muY + C1) * (2 * sigmaXY + C2);
 				double denominator = (muX * muX + muY * muY + C1) * (sigmaX2 + sigmaXY + C2);
-
 				return denominator == 0 ? 1 : numerator / denominator;
 			}
 			@Override
-			public boolean shouldSplit(ImageBuffer image, int x, int y, int w, int h){
-				if(w < 1 || h < 1) return false;
+			public boolean shouldSplit(ImageBuffer image, ImageStatistics imageStatistics, int x, int y, int w, int h){
 				int pixelCount = w * h;
-				double meanR = 0, meanG = 0, meanB = 0;
-
-				// Calculate mean
-				for(int j = y; j < y + h; j++) {
-					for(int i = x; i < x + w; i++) {
-						meanR += image.getRed(i, j);
-						meanG += image.getGreen(i, j);
-						meanB += image.getBlue(i, j);
-					}
-				}
-				meanR /= pixelCount;
-				meanG /= pixelCount;
-				meanB /= pixelCount;
+				double meanR = imageStatistics.getAverageR(x, y, w, h);
+				double meanG = imageStatistics.getAverageG(x, y, w, h);
+				double meanB = imageStatistics.getAverageB(x, y, w, h);
 
 				// Calculate variance and covariance
-				double varR = 0, varG = 0, varB = 0;
+				double varR = 0;
+				double varG = 0;
+				double varB = 0;
 				for(int j = y; j < y + h; j++) {
 					for(int i = x; i < x + w; i++) {
 						varR += Math.pow(image.getRed(i, j) - meanR, 2);
@@ -229,7 +199,6 @@ public class ImageQuadTreeCompressor {
 				double ssimR = computeSSIM(meanR, varR, meanR, 0);
 				double ssimG = computeSSIM(meanG, varG, meanG, 0);
 				double ssimB = computeSSIM(meanB, varB, meanB, 0);
-
 				double ssim = (ssimR + ssimG + ssimB) / 3.0;
 
 				// Check if SSIM too different from its average
@@ -243,29 +212,30 @@ public class ImageQuadTreeCompressor {
 			this.color = color;
 		}
 	}
-	protected static final ExecutorService executorService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
 	protected final ImageBuffer image;
-	protected final long[] imageIntegralR;
-	protected final long[] imageIntegralG;
-	protected final long[] imageIntegralB;
-	protected final long[] imageIntegralA;
+	protected final ImageStatistics imageStatistics;
 	protected final Controller controller;
 	protected final int minBlockSize;
 	protected final Boundary2DQuadTree<QuadTreeMetadata> quadTree;
 	protected final MutableIntList quadTreeIndexQueue;
 
+	protected final BufferedImage compressionImage;
+	protected final Graphics2D compressionGraphics;
+	protected final MutableIntList drawCompressionQueue;
+
 	public ImageQuadTreeCompressor(ImageBuffer image, Controller controller, int minBlockSize) {
 		this.image = image;
-		this.imageIntegralR = Utils.getPrecomputeImageIntegral(image, 0);
-		this.imageIntegralG = Utils.getPrecomputeImageIntegral(image, 1);
-		this.imageIntegralB = Utils.getPrecomputeImageIntegral(image, 2);
-		this.imageIntegralA = Utils.getPrecomputeImageIntegral(image, 3);
+		this.imageStatistics = new ImageStatistics(image, minBlockSize, minBlockSize);
 		this.controller = controller;
 		this.minBlockSize = minBlockSize;
-		this.quadTree = new Boundary2DQuadTree<>(0, 0, image.getWidth(), image.getHeight());
+		this.quadTree = new Boundary2DQuadTree<>(0, 0, image.getWidth(), image.getHeight(), minBlockSize, minBlockSize);
 		this.quadTreeIndexQueue = IntLists.mutable.empty();
 		this.quadTreeIndexQueue.add(0);
+
+		this.compressionImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
+		this.compressionGraphics = this.compressionImage.createGraphics();
+		this.drawCompressionQueue = IntLists.mutable.empty();
 	}
 
 	public boolean step() {
@@ -279,21 +249,14 @@ public class ImageQuadTreeCompressor {
 			int y = quadTree.getBoundaryY(quadTreeIndex);
 			int w = quadTree.getBoundaryW(quadTreeIndex);
 			int h = quadTree.getBoundaryH(quadTreeIndex);
-
-			if (w <= 1 || h <= 1 || w <= minBlockSize || h <= minBlockSize) {
-				averageColorFutures[i] = CompletableFuture.supplyAsync(() ->
-					getImageAverageColor(x, y, w, h), executorService);
-				shouldSplitFutures[i] = CompletableFuture.completedFuture(false);
-				continue;
-			}
-
-			shouldSplitFutures[i] = CompletableFuture.supplyAsync(() -> controller.shouldSplit(image, x, y, w, h), executorService);
-			averageColorFutures[i] = CompletableFuture.supplyAsync(() -> getImageAverageColor(x, y, w, h), executorService);
+			shouldSplitFutures[i] = w <= 1 || h <= 1 || w <= minBlockSize || h <= minBlockSize ? 
+				CompletableFuture.completedFuture(false) :
+				CompletableFuture.supplyAsync(() -> controller.shouldSplit(image, imageStatistics, x, y, w, h), Utils.executorService);
+			averageColorFutures[i] = CompletableFuture.supplyAsync(() -> imageStatistics.getAverageColor(x, y, w, h), Utils.executorService);
 		}
 		for(int i = 0; i < queueCopy.size(); i++) {
 			int quadTreeIndex = queueCopy.get(i);
 			boolean shouldSplit = shouldSplitFutures[i].join();
-			// TODO minBlockSize
 			if(!shouldSplit) continue;
 			quadTree.split(quadTreeIndex);
 			quadTreeIndexQueue.add(quadTree.getIndexTL(quadTreeIndex));
@@ -305,41 +268,23 @@ public class ImageQuadTreeCompressor {
 			int quadTreeIndex = queueCopy.get(i);
 			int color = averageColorFutures[i].join();
 			quadTree.setMetadata(quadTreeIndex, new QuadTreeMetadata(color));
+			drawCompressionQueue.add(quadTreeIndex);
 		}
 		return quadTreeIndexQueue.size() > 0;
 	}
-	protected int getImageAverageColor(int x, int y, int w, int h) {
-		int r = Utils.getImageIntegralAverageColor(imageIntegralR, image.getWidth(), image.getHeight(), x, y, w, h);
-		int g = Utils.getImageIntegralAverageColor(imageIntegralG, image.getWidth(), image.getHeight(), x, y, w, h);
-		int b = Utils.getImageIntegralAverageColor(imageIntegralB, image.getWidth(), image.getHeight(), x, y, w, h);
-		int a = Utils.getImageIntegralAverageColor(imageIntegralA, image.getWidth(), image.getHeight(), x, y, w, h);
-		return ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
-	}
 	public BufferedImage getCompressedImage() {
-		var compressedImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-		var graphics = compressedImage.getGraphics();
-		var queue = IntLists.mutable.empty();
-		queue.add(0);
-		while(queue.size() > 0) {
-			int quadTreeIndex = queue.get(0);
-			queue.removeAtIndex(0);
+		drawCompressionQueue.reverseThis();
+		while(drawCompressionQueue.size() > 0) {
+			int quadTreeIndex = drawCompressionQueue.getLast();
+			drawCompressionQueue.removeAtIndex(drawCompressionQueue.size() - 1);
 			int x = quadTree.getBoundaryX(quadTreeIndex);
 			int y = quadTree.getBoundaryY(quadTreeIndex);
 			int w = quadTree.getBoundaryW(quadTreeIndex);
 			int h = quadTree.getBoundaryH(quadTreeIndex);
 			QuadTreeMetadata metadata = quadTree.getMetadata(quadTreeIndex);
-			if(metadata == null) continue;
-			graphics.setColor(new Color(metadata.color, true));
-			graphics.fillRect(x, y, w, h);
-			int indexTL = quadTree.getIndexTL(quadTreeIndex);
-			int indexTR = quadTree.getIndexTR(quadTreeIndex);
-			int indexBL = quadTree.getIndexBL(quadTreeIndex);
-			int indexBR = quadTree.getIndexBR(quadTreeIndex);
-			if(indexTL != -1) queue.add(indexTL);
-			if(indexTR != -1) queue.add(indexTR);
-			if(indexBL != -1) queue.add(indexBL);
-			if(indexBR != -1) queue.add(indexBR);
+			compressionGraphics.setColor(new Color(metadata.color, true));
+			compressionGraphics.fillRect(x, y, w, h);
 		}
-		return compressedImage;
+		return compressionImage;
 	}
 }
