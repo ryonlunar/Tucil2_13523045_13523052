@@ -1,10 +1,14 @@
 package tucil2_13523045_13523052;
 
 import java.io.File;
-import java.io.IOException;
 
+import javax.imageio.ImageIO;
+
+import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.OptionGroup;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
@@ -16,18 +20,28 @@ public class Main {
 		Entropy;
 	}
 	public static void main(String... args) throws Exception {
-		var options = new Options();
-		options.addOption("i", "input", true, "Input image file");
-		options.addOption("m", "method", true, "QuadTree compression method");
-		options.addOption("t", "threshold", true, "QuadTree compression threshold");
-		options.addOption("b", "block", true, "Minimum block size");
-		options.addOption("h", "help", false, "Shows help message");
+		var basicOptions = new Options();
+		basicOptions.addOption(Option.builder("h").longOpt("help").desc("Shows help message").build());
+		var mainOptions = new Options();
+		mainOptions.addOption(Option.builder("i").longOpt("input").hasArg().required().desc("Input image file").build());
+		mainOptions.addOption(Option.builder("m").longOpt("method").hasArg().required().desc("QuadTree compression method").build());
+		mainOptions.addOption(Option.builder("t").longOpt("threshold").hasArg().required().desc("QuadTree compression threshold").build());
+		mainOptions.addOption(Option.builder("b").longOpt("block").hasArg().required().desc("Minimum block size").build());
+		for(var basicOption : basicOptions.getOptions())
+			mainOptions.addOption(basicOption);
 		try {
-			var cmd = new DefaultParser().parse(options, args);
-			if(cmd.hasOption("help")) {
-				new HelpFormatter().printHelp(Utils.getCommandLine().orElse("java -jar Tucil2_13523045_13523052.jar"), options);
+			var basicOptionsParser = new DefaultParser().parse(basicOptions, args, true);
+			if(basicOptionsParser.hasOption("help")) {
+				new HelpFormatter().printHelp("java -jar " + Utils.getJarName().orElse("Tucil2_13523045_13523052.jar"), mainOptions);
 				System.exit(0);
 			}
+		} catch(ParseException e) {
+			System.out.println("Error: " + e.getMessage());
+			new HelpFormatter().printHelp("java -jar " + Utils.getJarName().orElse("Tucil2_13523045_13523052.jar"), mainOptions);
+			System.exit(1);
+		}
+		try {
+			var cmd = new DefaultParser().parse(mainOptions, args, false);
 			var inputFile = cmd.getOptionValue("input");
 			var quadTreeMethod = QuadTreeMethod.valueOf(cmd.getOptionValue("method"));
 			var quadTreeThreshold = Double.parseDouble(cmd.getOptionValue("threshold"));
@@ -35,12 +49,21 @@ public class Main {
 			entryCLI(inputFile, quadTreeMethod, quadTreeThreshold, minBlockSize);
 		} catch(ParseException e) {
 			System.out.println("Error: " + e.getMessage());
-			new HelpFormatter().printHelp(Utils.getCommandLine().orElse("java -jar Tucil2_13523045_13523052.jar"), options);
+			new HelpFormatter().printHelp("java -jar " + Utils.getJarName().orElse("Tucil2_13523045_13523052.jar"), mainOptions);
 			System.exit(1);
 		}
 	}
 	public static void entryCLI(String inputFile, QuadTreeMethod quadTreeMethod, double quadTreeThreshold, int minBlockSize) throws Exception {
 		var imageBuffer = Utils.readImageBuffer(new File(inputFile));
-		var quadTree = new Boundary2DQuadTree(0, 0, imageBuffer.getWidth(), imageBuffer.getHeight());
+		var compressor = new ImageQuadTreeCompressor(imageBuffer, new ImageQuadTreeCompressor.Controller.Variance(quadTreeThreshold), minBlockSize);
+		int step = 0;
+		while(compressor.step()) {
+			System.out.println("Step " + step);
+			ImageIO.write(compressor.getCompressedImage(), "png", new File("out/step-" + step + ".png"));
+			step++;
+		}
+		ImageIO.write(compressor.getCompressedImage(), "png", new File("out/step-" + step + ".png"));
+		System.out.println("Done");
+		System.exit(0);
 	}
 }

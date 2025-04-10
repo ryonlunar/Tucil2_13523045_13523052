@@ -26,6 +26,9 @@ sourceSets {
 }
 
 dependencies {
+	implementation("org.eclipse.collections:eclipse-collections-api:11.1.0")
+	implementation("org.eclipse.collections:eclipse-collections:11.1.0")
+	implementation("commons-cli:commons-cli:1.9.0")
 }
 
 testing {
@@ -49,6 +52,8 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = "tucil2_13523045_13523052.Main"
     }
-    from(configurations.runtimeClasspath.get().map { zipTree(it) })
+	from(configurations.runtimeClasspath.get().map { zipTree(it) }) {
+		exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+	}
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

@@ -83,6 +83,16 @@ public class Boundary2DQuadTree<T> {
 		if(skipped.size() > 0) {
 			index = skipped.getLast();
 			skipped.removeAtIndex(skipped.size() - 1);
+		} else {
+			indices.add(-1);
+			indices.add(-1);
+			indices.add(-1);
+			indices.add(-1);
+			boundaries.add(-1);
+			boundaries.add(-1);
+			boundaries.add(-1);
+			boundaries.add(-1);
+			metadata.add(null);
 		}
 		setIndexTL(index, -1);
 		setIndexTR(index, -1);
