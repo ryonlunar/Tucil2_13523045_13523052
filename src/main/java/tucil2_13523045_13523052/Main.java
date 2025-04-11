@@ -207,7 +207,8 @@ public class Main {
 							}));
 						}
 						long saveStart = System.nanoTime();
-						ImageIO.write(pair.getOne(), format, new File(outputDirectory, "step-" + currentStep + "." + format));
+						File stepImage = new File(outputDirectory, "step-" + currentStep + "." + format);
+						Utils.saveCompressed(pair.getOne(), stepImage, format, 0.2f);
 						long saveDuration = System.nanoTime() - saveStart;
 						saveTotalDuration.addAndGet(saveDuration);
 					} catch(IOException e) {
@@ -264,7 +265,7 @@ public class Main {
 			saveFutures.add(CompletableFuture.supplyAsync(() -> {
 				try {
 					long saveStart = System.nanoTime();
-					ImageIO.write(pair.getOne(), format, finalImageFile);
+					Utils.saveCompressed(pair.getOne(), finalImageFile, format, 0.2f);
 					long saveDuration = System.nanoTime() - saveStart;
 					saveTotalDuration.addAndGet(saveDuration);
 				} catch(IOException e) {

@@ -1,14 +1,20 @@
 package tucil2_13523045_13523052;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
+import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 
 import org.eclipse.collections.api.list.primitive.MutableIntList;
 import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
@@ -63,4 +69,19 @@ public class Utils {
 			throw new RuntimeException(e);
 		}
 	}
+	public static void saveCompressed(BufferedImage image, File outputFile, String format, float quality) throws IOException {
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName(format);
+        if(!writers.hasNext()) throw new IllegalStateException("No " + format + " writers found");
+        ImageWriter writer = writers.next();
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        if(param.canWriteCompressed()) {
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(quality);
+        }
+        try(ImageOutputStream ios = ImageIO.createImageOutputStream(outputFile)) {
+            writer.setOutput(ios);
+            writer.write(null, new IIOImage(image, null, null), param);
+        }
+        writer.dispose();
+    }
 }
