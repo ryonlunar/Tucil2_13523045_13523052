@@ -29,6 +29,7 @@ dependencies {
 	implementation("org.eclipse.collections:eclipse-collections-api:11.1.0")
 	implementation("org.eclipse.collections:eclipse-collections:11.1.0")
 	implementation("commons-cli:commons-cli:1.9.0")
+    implementation("net.imagej:imagej:30.0.0")
 }
 
 testing {

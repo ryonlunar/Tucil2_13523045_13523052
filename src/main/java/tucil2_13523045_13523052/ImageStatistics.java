@@ -26,16 +26,16 @@ public class ImageStatistics {
 	}
 
 	public float getAverageR(int x, int y, int w, int h) {
-		return Math.min(255, (float) integralR.getIntegral(x, y, w, h) / (w * h));
+		return Math.max(0, Math.min(255, (float) integralR.getIntegral(x, y, w, h) / (w * h)));
 	}
 	public float getAverageG(int x, int y, int w, int h) {
-		return Math.min(255, (float) integralG.getIntegral(x, y, w, h) / (w * h));
+		return Math.max(0, Math.min(255, (float) integralG.getIntegral(x, y, w, h) / (w * h)));
 	}
 	public float getAverageB(int x, int y, int w, int h) {
-		return Math.min(255, (float) integralB.getIntegral(x, y, w, h) / (w * h));
+		return Math.max(0, Math.min(255, (float) integralB.getIntegral(x, y, w, h) / (w * h)));
 	}
 	public float getAverageA(int x, int y, int w, int h) {
-		return Math.min(255, (float) integralA.getIntegral(x, y, w, h) / (w * h));
+		return Math.max(0, Math.min(255, (float) integralA.getIntegral(x, y, w, h) / (w * h)));
 	}
 	public int getAverageColor(int x, int y, int w, int h) {
 		return Utils.packARGB(

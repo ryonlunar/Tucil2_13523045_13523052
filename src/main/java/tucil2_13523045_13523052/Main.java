@@ -5,7 +5,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,7 +41,7 @@ public class Main {
 		mainOptions.addOption(Option.builder("t").longOpt("threshold").hasArg().required().desc("QuadTree compression threshold").build());
 		mainOptions.addOption(Option.builder("b").longOpt("block").hasArg().required().desc("Minimum block size").build());
 		mainOptions.addOption(Option.builder("g").longOpt("gif").desc("Generate gif animation").build());
-		mainOptions.addOption(Option.builder("v").longOpt("verbose").desc("Output verbose").build());
+		mainOptions.addOption(Option.builder().longOpt("verbose").desc("Output verbose").build());
 		for(var basicOption : basicOptions.getOptions())
 			mainOptions.addOption(basicOption);
 		try {
@@ -58,13 +57,38 @@ public class Main {
 		}
 		try {
 			var cmd = new DefaultParser().parse(mainOptions, args, false);
-			var inputFile = cmd.getOptionValue("input");
-			var outputFile = cmd.getOptionValue("output");
-			var quadTreeMethod = QuadTreeMethod.valueOf(cmd.getOptionValue("method"));
-			var quadTreeThreshold = Double.parseDouble(cmd.getOptionValue("threshold"));
-			var minBlockSize = Integer.parseInt(cmd.getOptionValue("block"));
-			var generateGif = cmd.hasOption("gif");
-			var verbose = cmd.hasOption("verbose");
+			File inputFile;
+			try {
+				inputFile = new File(cmd.getOptionValue("input")).getAbsoluteFile();
+			} catch(Throwable e) {
+				throw new IllegalArgumentException("Invalid input file: '" + cmd.getOptionValue("input") + "'", e);
+			}
+			File outputFile;
+			try {
+				outputFile = new File(cmd.getOptionValue("output")).getAbsoluteFile();
+			} catch(Throwable e) {
+				throw new IllegalArgumentException("Invalid output file: '" + cmd.getOptionValue("output") + "'", e);
+			}
+			QuadTreeMethod quadTreeMethod;
+			try {
+				quadTreeMethod = QuadTreeMethod.valueOf(cmd.getOptionValue("method"));
+			} catch(Throwable e) {
+				throw new IllegalArgumentException("Invalid quad tree method: '" + cmd.getOptionValue("method") + "'");
+			}
+			double quadTreeThreshold;
+			try {
+				quadTreeThreshold = Double.parseDouble(cmd.getOptionValue("threshold"));
+			} catch(Throwable e) {
+				throw new IllegalArgumentException("Invalid threshold: " + cmd.getOptionValue("threshold"));
+			}
+			int minBlockSize;
+			try {
+				minBlockSize = Integer.parseInt(cmd.getOptionValue("block"));
+			} catch(Throwable e) {
+				throw new IllegalArgumentException("Invalid min block size: " + cmd.getOptionValue("block"));
+			}
+			boolean generateGif = cmd.hasOption("gif");
+			boolean verbose = cmd.hasOption("verbose");
 			entryCLI(inputFile, outputFile, quadTreeMethod, quadTreeThreshold, minBlockSize, generateGif, verbose);
 		} catch(ParseException e) {
 			System.out.println("Error: " + e.getMessage());
@@ -72,20 +96,23 @@ public class Main {
 			System.exit(1);
 		}
 	}
-	public static void entryCLI(String inputFile, String outputFile, QuadTreeMethod quadTreeMethod, double quadTreeThreshold, int minBlockSize, boolean generateGif, boolean verbose) throws Exception {
-		File file = new File(inputFile).getAbsoluteFile();
-		if(!file.exists())
+	public static void entryCLI(File inputFile, File outputDirectory, QuadTreeMethod quadTreeMethod, double quadTreeThreshold, int minBlockSize, boolean generateGif, boolean verbose) throws Exception {
+		if(!inputFile.exists())
 			throw new IllegalArgumentException("Input file not found: " + inputFile);
-		String format = inputFile.substring(inputFile.lastIndexOf('.') + 1).toLowerCase();
+		String format = inputFile.getName().substring(inputFile.getName().lastIndexOf('.') + 1).toLowerCase();
 		if(!format.matches("png|jpg|jpeg|bmp"))
 			throw new IllegalArgumentException("Unsupported image format: " + format);
-		File outputDirectory = new File(outputFile).getAbsoluteFile();
 		if(!outputDirectory.exists())
 			outputDirectory.mkdirs();
 		if(!outputDirectory.exists() || !outputDirectory.isDirectory())
 			throw new IllegalArgumentException("Cannot create output directory");
 
-		var image = Utils.readImageBuffer(file);
+		ImageBuffer image;
+		try {
+			image = Utils.readImageBuffer(inputFile);
+		} catch(Exception e) {
+			throw new IllegalArgumentException("Failed to read image", e);
+		}
 		ImageQuadTreeCompressor.Controller controller = null;
 		switch(quadTreeMethod) {
 			case Variance:
@@ -107,7 +134,7 @@ public class Main {
 		System.out.printf("Precompute done in %.2fms\n", (float) (System.nanoTime() - constructStart) / 1000000);
 		var saveFutures = new ArrayList<CompletableFuture<?>>();
 		var gifFile = generateGif ? new File(outputDirectory, "output.gif") : null;
-		var gifWriter = generateGif ? new GifSequenceWriter(ImageIO.createImageOutputStream(gifFile), BufferedImage.TYPE_INT_RGB, 150, true) : null;
+		var gifWriter = generateGif ? new GifSequenceWriter(ImageIO.createImageOutputStream(gifFile), BufferedImage.TYPE_INT_RGB, 300, true) : null;
 		var gifFutures = generateGif ? Collections.synchronizedList(new ArrayList<CompletableFuture<?>>()) : null;
 		var gifSequenceFuture = generateGif ? CompletableFuture.completedFuture(null) : null;
 		var bufferImageQueue = new LinkedBlockingQueue<Pair<BufferedImage, Graphics2D>>();
@@ -131,7 +158,16 @@ public class Main {
 			boolean loop = compressor.step();
 			long loopDuration = System.nanoTime() - loopStart;
 			loopTotalDuration += loopDuration;
+			if(!loop) {
+				System.out.printf("Finalization done in %.2fms\n", (float) loopDuration / 1000000);
+				if(verbose)
+					System.out.printf("Node count: %d\n", compressor.getNodeCount());
+				step--;
+				break;
+			}
 			System.out.printf("Step %d done in %.2fms\n", currentStep, (float) loopDuration / 1000000);
+			if(verbose)
+				System.out.printf("Node count: %d\n", compressor.getNodeCount());
 			if(generateGif || verbose) {
 				var compressedImage = compressor.getCompressedImage();
 				var pair = getBufferImage.get();
@@ -184,7 +220,6 @@ public class Main {
 					return null;
 				}, Utils.executorService));
 			}
-			if(!loop) break;
 			step++;
 		}
 		File finalImageFile = new File(outputDirectory, "output." + format);
@@ -195,6 +230,8 @@ public class Main {
 			saveFutures.add(CompletableFuture.runAsync(() -> {
 				try {
 					long saveStart = System.nanoTime();
+					if(finalImageFile.exists())
+						finalImageFile.delete();
 					Files.copy(stepLastFile.toPath(), finalImageFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 					long saveDuration = System.nanoTime() - saveStart;
 					saveTotalDuration.addAndGet(saveDuration);
@@ -241,7 +278,7 @@ public class Main {
 		for(var saveFuture : saveFutures)
 			saveFuture.join();
 
-		long originalFileSize = file.length();
+		long originalFileSize = inputFile.length();
 		int nodeCount = compressor.getNodeCount();
 		int depth = compressor.getTreeDepth();
 		long compressedSize = finalImageFile.length();
@@ -257,9 +294,9 @@ public class Main {
 		System.out.printf("Kedalaman pohon: %d\n", depth);
 		System.out.printf("Jumlah simpul pohon: %d\n", nodeCount);
 		var cwdUri = new File("").getAbsoluteFile().toURI();
-		System.out.printf("Gambar hasil kompresi terakhir: %s\n", finalImageFile.toURI().relativize(cwdUri).getPath());
+		System.out.printf("Gambar hasil kompresi terakhir: %s\n", cwdUri.relativize(finalImageFile.toURI()).getPath());
 		if(generateGif)
-			System.out.printf("Gambar hasil GIF: %s\n", gifFile.toURI().relativize(cwdUri).getPath());
+			System.out.printf("Gambar hasil GIF: %s\n", cwdUri.relativize(gifFile.toURI()).getPath());
 		System.exit(0);
 	}
 }
