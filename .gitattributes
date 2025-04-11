@@ -11,3 +11,5 @@
 *.jar           binary
 *.class         binary
 *.class.*       binary
+* text=auto
+* text eol=lf
