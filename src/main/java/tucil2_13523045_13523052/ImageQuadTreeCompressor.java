@@ -241,34 +241,45 @@ public class ImageQuadTreeCompressor {
 	public boolean step() {
 		MutableIntList queueCopy = quadTreeIndexQueue.toList();
 		quadTreeIndexQueue.clear();
-		CompletableFuture<Boolean>[] shouldSplitFutures = new CompletableFuture[queueCopy.size()];
-		CompletableFuture<Integer>[] averageColorFutures = new CompletableFuture[queueCopy.size()];
-		for(int i = 0; i < queueCopy.size(); i++) {
-			int quadTreeIndex = queueCopy.get(i);
-			int x = quadTree.getBoundaryX(quadTreeIndex);
-			int y = quadTree.getBoundaryY(quadTreeIndex);
-			int w = quadTree.getBoundaryW(quadTreeIndex);
-			int h = quadTree.getBoundaryH(quadTreeIndex);
-			shouldSplitFutures[i] = w <= 1 || h <= 1 || w <= minBlockSize || h <= minBlockSize ? 
-				CompletableFuture.completedFuture(false) :
-				CompletableFuture.supplyAsync(() -> controller.shouldSplit(image, imageStatistics, x, y, w, h), Utils.executorService);
-			averageColorFutures[i] = CompletableFuture.supplyAsync(() -> imageStatistics.getAverageColor(x, y, w, h), Utils.executorService);
+		boolean[] shouldSplitResults = new boolean[queueCopy.size()];
+		int[] averageColorResults = new int[queueCopy.size()];
+		int futureChunk = 64;
+		int futureGroup = (queueCopy.size() + futureChunk - 1) / futureChunk;
+		CompletableFuture<?>[] futures = new CompletableFuture[futureGroup];
+		for(int i = 0; i < futureGroup; i++) {
+			int startQueue = i * futureChunk;
+			int endQueue = Math.min((i + 1) * futureChunk, queueCopy.size());
+			futures[i] = CompletableFuture.runAsync(() -> {
+				for(int j = startQueue; j < endQueue; j++) {
+					int quadTreeIndex = queueCopy.get(j);
+					int x = quadTree.getBoundaryX(quadTreeIndex);
+					int y = quadTree.getBoundaryY(quadTreeIndex);
+					int w = quadTree.getBoundaryW(quadTreeIndex);
+					int h = quadTree.getBoundaryH(quadTreeIndex);
+					shouldSplitResults[j] = w <= 1 || h <= 1 || w <= minBlockSize || h <= minBlockSize ? 
+						false : controller.shouldSplit(image, imageStatistics, x, y, w, h);
+					averageColorResults[j] = imageStatistics.getAverageColor(x, y, w, h);
+				}
+			});
 		}
-		for(int i = 0; i < queueCopy.size(); i++) {
-			int quadTreeIndex = queueCopy.get(i);
-			boolean shouldSplit = shouldSplitFutures[i].join();
-			if(!shouldSplit) continue;
-			quadTree.split(quadTreeIndex);
-			quadTreeIndexQueue.add(quadTree.getIndexTL(quadTreeIndex));
-			quadTreeIndexQueue.add(quadTree.getIndexTR(quadTreeIndex));
-			quadTreeIndexQueue.add(quadTree.getIndexBL(quadTreeIndex));
-			quadTreeIndexQueue.add(quadTree.getIndexBR(quadTreeIndex));
-		}
-		for(int i = 0; i < queueCopy.size(); i++) {
-			int quadTreeIndex = queueCopy.get(i);
-			int color = averageColorFutures[i].join();
-			quadTree.setMetadata(quadTreeIndex, new QuadTreeMetadata(color));
-			drawCompressionQueue.add(quadTreeIndex);
+		for(int i = 0; i < futureGroup; i++) {
+			int startQueue = i * futureChunk;
+			int endQueue = Math.min((i + 1) * futureChunk, queueCopy.size());
+			futures[i].join();
+			for(int j = startQueue; j < endQueue; j++) {
+				int quadTreeIndex = queueCopy.get(j);
+				boolean shouldSplit = shouldSplitResults[j];
+				int averageColor = averageColorResults[j];
+				if(shouldSplit) {
+					quadTree.split(quadTreeIndex);
+					quadTreeIndexQueue.add(quadTree.getIndexTL(quadTreeIndex));
+					quadTreeIndexQueue.add(quadTree.getIndexTR(quadTreeIndex));
+					quadTreeIndexQueue.add(quadTree.getIndexBL(quadTreeIndex));
+					quadTreeIndexQueue.add(quadTree.getIndexBR(quadTreeIndex));
+				}
+				quadTree.setMetadata(quadTreeIndex, new QuadTreeMetadata(averageColor));
+				drawCompressionQueue.add(quadTreeIndex);
+			}
 		}
 		return quadTreeIndexQueue.size() > 0;
 	}
@@ -289,11 +300,11 @@ public class ImageQuadTreeCompressor {
 	}
 
 	public int getNodeCount() {
-        return quadTree.getNodeCount();
-    }
-    public int getTreeDepth() {
-        return quadTree.getMaxDepth();
-    }
+		return quadTree.getNodeCount();
+	}
+	public int getTreeDepth() {
+		return quadTree.getMaxDepth();
+	}
 	public int getTotalLeafArea() {
 		return quadTree.getTotalLeafArea();
 	}
