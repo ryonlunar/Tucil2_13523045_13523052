@@ -2,12 +2,16 @@ package tucil2_13523045_13523052;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.imageio.ImageIO;
+
+import org.eclipse.collections.api.list.primitive.MutableIntList;
+import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
 
 public class Utils {
 	private Utils() {
@@ -38,5 +42,25 @@ public class Utils {
 	}
 	public static int packARGB(int r, int g, int b, int a) {
 		return ((a & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+	}
+
+	protected static final Field FIELD_IntArrayList_size;
+	static {
+		try {
+			FIELD_IntArrayList_size = IntArrayList.class.getDeclaredField("size");
+			FIELD_IntArrayList_size.setAccessible(true);
+		} catch(Exception e) {
+			throw new Error(e);
+		}
+	}
+	public static void growMutableIntList(MutableIntList list, int size) {
+		IntArrayList arrayList = (IntArrayList) list;
+		size = Math.max(size, arrayList.size());
+		arrayList.ensureCapacity(size);
+		try {
+			FIELD_IntArrayList_size.setInt(arrayList, size);
+		} catch(IllegalArgumentException | IllegalAccessException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }

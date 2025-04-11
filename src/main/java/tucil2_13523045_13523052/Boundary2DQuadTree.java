@@ -7,12 +7,11 @@ import org.eclipse.collections.api.factory.primitive.IntLists;
 import org.eclipse.collections.api.list.primitive.MutableIntList;
 import org.eclipse.collections.impl.list.mutable.primitive.IntArrayList;
 
-public class Boundary2DQuadTree<T> {
+public class Boundary2DQuadTree {
 	protected final int alignX;
 	protected final int alignY;
 	protected final MutableIntList indices;
 	protected final MutableIntList boundaries;
-	protected final List<T> metadata;
 	protected final MutableIntList skipped;
 
 	public Boundary2DQuadTree(int x, int y, int width, int height, int alignX, int alignY) {
@@ -22,7 +21,6 @@ public class Boundary2DQuadTree<T> {
 		this.alignY = alignY;
 		this.indices = IntLists.mutable.empty();
 		this.boundaries = IntLists.mutable.empty();
-		this.metadata = new ArrayList<>();
 		this.skipped = IntLists.mutable.empty();
 		newTree(x, y, width, height);
 	}
@@ -75,16 +73,6 @@ public class Boundary2DQuadTree<T> {
 	protected void setBoundaryH(int index, int value) {
 		boundaries.set(index * 4 + 3, value);
 	}
-	public T getMetadata(int index) {
-		if(skipped.contains(index) || index < 0 || index >= indices.size() / 4)
-			throw new IndexOutOfBoundsException(index);
-		return metadata.get(index);
-	}
-	public void setMetadata(int index, T value) {
-		if(skipped.contains(index) || index < 0 || index >= indices.size() / 4)
-			throw new IndexOutOfBoundsException(index);
-		metadata.set(index, value);
-	}
 
 	public int getNodeCount() {
 		return indices.size() / 4 - skipped.size();
@@ -127,17 +115,14 @@ public class Boundary2DQuadTree<T> {
 		return total;
 	}
 
-	private static final int[] INDICES_INITIAL = { -1, -1, -1, -1 };
-	private static final int[] BOUNDARIES_INITIAL = { -1, -1, -1, -1 };
 	protected int newTree(int x, int y, int w, int h) {
 		int index = indices.size() / 4;
 		if(skipped.size() > 0) {
 			index = skipped.getLast();
 			skipped.removeAtIndex(skipped.size() - 1);
 		} else {
-			indices.addAllAtIndex(indices.size(), INDICES_INITIAL);
-			boundaries.addAllAtIndex(boundaries.size(), BOUNDARIES_INITIAL);
-			metadata.add(null);
+			Utils.growMutableIntList(indices, indices.size() + 4);
+			Utils.growMutableIntList(boundaries, boundaries.size() + 4);
 		}
 		setIndexTL(index, -1);
 		setIndexTR(index, -1);
@@ -147,7 +132,6 @@ public class Boundary2DQuadTree<T> {
 		setBoundaryY(index, y);
 		setBoundaryW(index, w);
 		setBoundaryH(index, h);
-		metadata.set(index, null);
 		return index;
 	}
 	protected void deleteTree(int index) {
@@ -160,7 +144,6 @@ public class Boundary2DQuadTree<T> {
 		setBoundaryY(index, -1);
 		setBoundaryW(index, -1);
 		setBoundaryH(index, -1);
-		metadata.set(index, null);
 	}
 	public void split(int index) {
 		int x = getBoundaryX(index);

@@ -206,18 +206,13 @@ public class ImageQuadTreeCompressor {
 			}
 		}
 	}
-	protected static class QuadTreeMetadata {
-		protected final int color;
-		public QuadTreeMetadata(int color) {
-			this.color = color;
-		}
-	}
 
 	protected final ImageBuffer image;
 	protected final ImageStatistics imageStatistics;
 	protected final Controller controller;
 	protected final int minBlockSize;
-	protected final Boundary2DQuadTree<QuadTreeMetadata> quadTree;
+	protected final Boundary2DQuadTree quadTree;
+	protected final MutableIntList quadTreeColors;
 	protected final MutableIntList quadTreeIndexQueue;
 
 	protected final BufferedImage compressionImage;
@@ -229,7 +224,8 @@ public class ImageQuadTreeCompressor {
 		this.imageStatistics = new ImageStatistics(image, minBlockSize, minBlockSize);
 		this.controller = controller;
 		this.minBlockSize = minBlockSize;
-		this.quadTree = new Boundary2DQuadTree<>(0, 0, image.getWidth(), image.getHeight(), minBlockSize, minBlockSize);
+		this.quadTree = new Boundary2DQuadTree(0, 0, image.getWidth(), image.getHeight(), minBlockSize, minBlockSize);
+		this.quadTreeColors = IntLists.mutable.empty();
 		this.quadTreeIndexQueue = IntLists.mutable.empty();
 		this.quadTreeIndexQueue.add(0);
 
@@ -277,7 +273,8 @@ public class ImageQuadTreeCompressor {
 					quadTreeIndexQueue.add(quadTree.getIndexBL(quadTreeIndex));
 					quadTreeIndexQueue.add(quadTree.getIndexBR(quadTreeIndex));
 				}
-				quadTree.setMetadata(quadTreeIndex, new QuadTreeMetadata(averageColor));
+				Utils.growMutableIntList(quadTreeColors, quadTreeIndex + 1);
+				quadTreeColors.set(quadTreeIndex, averageColor);
 				drawCompressionQueue.add(quadTreeIndex);
 			}
 		}
@@ -292,8 +289,8 @@ public class ImageQuadTreeCompressor {
 			int y = quadTree.getBoundaryY(quadTreeIndex);
 			int w = quadTree.getBoundaryW(quadTreeIndex);
 			int h = quadTree.getBoundaryH(quadTreeIndex);
-			QuadTreeMetadata metadata = quadTree.getMetadata(quadTreeIndex);
-			compressionGraphics.setColor(new Color(metadata.color, true));
+			int color = quadTreeColors.get(quadTreeIndex);
+			compressionGraphics.setColor(new Color(color, true));
 			compressionGraphics.fillRect(x, y, w, h);
 		}
 		return compressionImage;
