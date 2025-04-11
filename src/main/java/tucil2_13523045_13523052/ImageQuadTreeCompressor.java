@@ -168,9 +168,9 @@ public class ImageQuadTreeCompressor {
 				super(threshold);
 			}
 
-			private double computeSSIM(double muX, double sigmaX2, double muY, double sigmaXY) {
+			private double computeSSIM(double muX, double sigmaX2, double muY, double sigmaXY, double sigmaY2) {
 				double numerator = (2 * muX * muY + C1) * (2 * sigmaXY + C2);
-				double denominator = (muX * muX + muY * muY + C1) * (sigmaX2 + sigmaXY + C2);
+				double denominator = (muX * muX + muY * muY + C1) * (sigmaX2 + sigmaY2 + C2);
 				return denominator == 0 ? 1 : numerator / denominator;
 			}
 			@Override
@@ -195,14 +195,18 @@ public class ImageQuadTreeCompressor {
 				varG /= pixelCount;
 				varB /= pixelCount;
 
-				// Karena membandingkan satu blok gambar dengan rata-ratanya sendiri maka, kovarians = 0
-				double ssimR = computeSSIM(meanR, varR, meanR, 0);
-				double ssimG = computeSSIM(meanG, varG, meanG, 0);
-				double ssimB = computeSSIM(meanB, varB, meanB, 0);
-				double ssim = (ssimR + ssimG + ssimB) / 3.0;
+				// nilai blok kompresi: diasumsikan gambar setelah kompresi adalah flat (meanR, meanG, meanB)
+				// maka: meanY = meanX, sigmaY² = 0, covXY = 0
+
+				double ssimR = computeSSIM(meanR, varR, meanR, 0, 0);
+				double ssimG = computeSSIM(meanG, varG, meanG, 0, 0);
+				double ssimB = computeSSIM(meanB, varB, meanB, 0, 0);
+
+				// Gunakan bobot sRGB
+				double ssimRGB = 0.2126 * ssimR + 0.7152 * ssimG + 0.0722 * ssimB;
 
 				// Check if SSIM too different from its average
-				return ssim < threshold;
+				return ssimRGB < threshold;
 			}
 		}
 	}
