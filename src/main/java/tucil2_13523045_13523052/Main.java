@@ -29,7 +29,8 @@ public class Main {
 		Variance,
 		MeanAbsoluteDeviation,
 		MaxPixelDifference,
-		Entropy;
+		Entropy,
+		SSIM;
 	}
 	public static void main(String... args) throws Exception {
 		var basicOptions = new Options();
@@ -126,6 +127,9 @@ public class Main {
 				break;
 			case Entropy:
 				controller = new ImageQuadTreeCompressor.Controller.Entropy(quadTreeThreshold);
+				break;
+			case SSIM:
+				controller = new ImageQuadTreeCompressor.Controller.StructuralSimilarityIndex(quadTreeThreshold);
 				break;
 		}
 
