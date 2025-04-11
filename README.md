@@ -2,8 +2,7 @@
 # Kompresi Gambar dengan Quad Tree
 **Quad Tree** adalah struktur data rekursif berbentuk pohon yang digunakan untuk membagi ruang dua dimensi (2D) menjadi empat kuadran secara hierarkis. Pada setiap simpul, ruang dibagi menjadi empat bagian yang lebih kecil: Top-Left, Top-Right, Bottom-Left, dan Bottom-Right. Proses ini dilakukan secara rekursif hanya jika suatu bagian tidak memenuhi kondisi homogenitas tertentu (misalnya terlalu banyak variasi warna).
 
-
-
+![Alt Text](test/eksperimen1/solutions/output.gif)
 
 ## Kontributor
 | NIM       | Nama |
